@@ -1,11 +1,9 @@
 import cv2
 import mediapipe as mp
 
-
 # MediaPipe setup
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
-
 
 hands = mp_hands.Hands(
     static_image_mode=False,
@@ -26,18 +24,15 @@ def detect_gesture(landmarks):
     ring_tip = landmarks[16]
     pinky_tip = landmarks[20]
 
-
     index_pip = landmarks[6]
     middle_pip = landmarks[10]
     ring_pip = landmarks[14]
     pinky_pip = landmarks[18]
 
-
     index_open = index_tip.y < index_pip.y
     middle_open = middle_tip.y < middle_pip.y
     ring_open = ring_tip.y < ring_pip.y
     pinky_open = pinky_tip.y < pinky_pip.y
-
 
     fingers = [
         index_open,
@@ -46,45 +41,34 @@ def detect_gesture(landmarks):
         pinky_open
     ]
 
-
     count = fingers.count(True)
-
 
     if index_open and middle_open and not ring_open and not pinky_open:
         return "PEACE"
 
-
     if index_open and not middle_open and not ring_open and not pinky_open:
         return "POINT"
-
 
     if count == 4:
         return "PALM"
 
-
     if count == 0:
         return "FIST"
-
 
     if thumb_tip.y < landmarks[3].y and count == 0:
         return "THUMB UP"
 
-
     return "UNKNOWN"
-
 
 
 # Camera
 cap = cv2.VideoCapture(0)
 
-
 print("GESTURE SYSTEM STARTED")
 
-
-# Store previous states
 previous_gestures = {}
+previous_command = ""
 hand_present = False
-
 
 
 while True:
@@ -94,42 +78,35 @@ while True:
     if not ret:
         break
 
-
     frame = cv2.flip(frame, 1)
 
-
-    rgb = cv2.cvtColor(
-        frame,
-        cv2.COLOR_BGR2RGB
-    )
-
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     result = hands.process(rgb)
 
-
-
     if result.multi_hand_landmarks:
 
-        current_hand = True
-
+        left_gesture = None
+        right_gesture = None
 
         for hand_landmarks, handedness in zip(
                 result.multi_hand_landmarks,
                 result.multi_handedness):
 
-
             label = handedness.classification[0].label
-
 
             lm_list = []
 
             for lm in hand_landmarks.landmark:
                 lm_list.append(lm)
 
-
             gesture = detect_gesture(lm_list)
 
-
+            # Store gesture for each hand
+            if label == "Left":
+                left_gesture = gesture
+            else:
+                right_gesture = gesture
 
             # Print only when gesture changes
             if previous_gestures.get(label) != gesture:
@@ -138,8 +115,6 @@ while True:
 
                 previous_gestures[label] = gesture
 
-
-
             # Draw landmarks
             mp_draw.draw_landmarks(
                 frame,
@@ -147,8 +122,7 @@ while True:
                 mp_hands.HAND_CONNECTIONS
             )
 
-
-            # Text position near wrist
+            # Text near wrist
             h, w, _ = frame.shape
 
             wrist = hand_landmarks.landmark[0]
@@ -156,45 +130,64 @@ while True:
             x = int(wrist.x * w)
             y = int(wrist.y * h)
 
-
             cv2.putText(
                 frame,
                 label + ": " + gesture,
-                (x-60, y-40),
+                (x - 60, y - 40),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1,
-                (0,255,0),
+                (0, 255, 0),
                 2
             )
 
+        # ===========================
+        # RC CAR COMMAND MAPPING
+        # ===========================
+
+        command = "NONE"
+
+        if left_gesture == "FIST" and right_gesture == "FIST":
+            command = "FORWARD"
+
+        elif left_gesture == "FIST":
+            command = "LEFT"
+
+        elif right_gesture == "FIST":
+            command = "RIGHT"
+
+        elif left_gesture == "PALM" and right_gesture == "PALM":
+            command = "STOP"
+
+        elif left_gesture == "POINT" and right_gesture == "POINT":
+            command = "REVERSE"
+
+        # Print only if command changes
+        if command != previous_command:
+            print("COMMAND:", command)
+            previous_command = command
 
         hand_present = True
 
-
-
     else:
 
-        # Print NO HAND only once
         if hand_present:
 
             print("NO HAND")
 
             previous_gestures.clear()
 
+            previous_command = ""
+
             hand_present = False
-
-
 
     cv2.imshow(
         "Hand Gesture Recognition",
         frame
     )
 
-
-    if cv2.waitKey(1) == 'q':
+    if cv2.waitKey(1) == 27:
         break
-
-
 
 cap.release()
 cv2.destroyAllWindows()
+ 
