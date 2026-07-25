@@ -191,7 +191,7 @@ while True:
     )
 
 
-    if cv2.waitKey(1) == 27:
+    if cv2.waitKey(1) == 'q':
         break
 
 
