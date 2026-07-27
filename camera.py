@@ -166,9 +166,51 @@ while True:
             print("COMMAND:", command)
             previous_command = command
 
+        # Choose colour
+        color = (255, 255, 255)
+
+        if command == "FORWARD":
+            color = (0, 255, 0)          # Green
+
+        elif command == "LEFT":
+            color = (255, 0, 0)          # Blue
+
+        elif command == "RIGHT":
+            color = (0, 255, 255)        # Yellow
+
+        elif command == "STOP":
+            color = (0, 0, 255)          # Red
+
+        elif command == "REVERSE":
+            color = (255, 0, 255)        # Purple
+
+        # Draw command
+        cv2.putText(
+            frame,
+            f"COMMAND: {command}",
+            (20, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.2,
+            color,
+            3
+            )
+
         hand_present = True
 
     else:
+
+
+        command = "NO HAND"
+
+        cv2.putText(
+            frame,
+            "COMMAND: NO HAND",
+            (20, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.2,
+            (0, 0, 255),
+            3
+        )
 
         if hand_present:
 
@@ -176,7 +218,7 @@ while True:
 
             previous_gestures.clear()
 
-            previous_command = ""
+            previous_command = "NO HAND"
 
             hand_present = False
 
