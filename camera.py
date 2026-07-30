@@ -1,9 +1,22 @@
 import cv2
 import mediapipe as mp
+import requests
 
 # MediaPipe setup
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
+
+session = requests.Session()
+ESP32_IP = "192.168.4.1"
+
+def send_command(command):
+    try:
+        url = f"http://{ESP32_IP}/cmd?dir={command}"
+        response = session.get(url, timeout=0.2)
+        response.close()
+        print("Sent:", command)
+    except requests.exceptions.RequestException:
+        print("ESP32 not reachable")
 
 hands = mp_hands.Hands(
     static_image_mode=False,
@@ -65,11 +78,21 @@ def detect_gesture(landmarks):
 cap = cv2.VideoCapture(0)
 
 print("GESTURE SYSTEM STARTED")
+send_command("S")   # Stop the car when the program starts
 
 previous_gestures = {}
 previous_command = ""
 hand_present = False
 
+display_command = {
+    "F": "FORWARD",
+    "B": "REVERSE",
+    "L": "LEFT",
+    "R": "RIGHT",
+    "S": "STOP",
+    "NONE": "NONE",
+    "NO HAND": "NO HAND"
+}
 
 while True:
 
@@ -147,47 +170,51 @@ while True:
         command = "NONE"
 
         if left_gesture == "FIST" and right_gesture == "FIST":
-            command = "FORWARD"
+            command = "F"
 
         elif left_gesture == "FIST":
-            command = "LEFT"
+            command = "L"
 
         elif right_gesture == "FIST":
-            command = "RIGHT"
+            command = "R"
 
         elif left_gesture == "PALM" and right_gesture == "PALM":
-            command = "STOP"
+            command = "S"
 
         elif left_gesture == "POINT" and right_gesture == "POINT":
-            command = "REVERSE"
+            command = "B"
 
         # Print only if command changes
         if command != previous_command:
-            print("COMMAND:", command)
-            previous_command = command
 
+            print("COMMAND:", display_command[command])
+
+            send_command(command)
+
+            previous_command = command
         # Choose colour
         color = (255, 255, 255)
 
-        if command == "FORWARD":
+        if command == "F":
             color = (0, 255, 0)          # Green
 
-        elif command == "LEFT":
+        elif command == "L":
             color = (255, 0, 0)          # Blue
 
-        elif command == "RIGHT":
+        elif command == "R":
             color = (0, 255, 255)        # Yellow
 
-        elif command == "STOP":
+        elif command == "S":
             color = (0, 0, 255)          # Red
 
-        elif command == "REVERSE":
+        elif command == "B":
             color = (255, 0, 255)        # Purple
-
+  
+        
         # Draw command
         cv2.putText(
             frame,
-            f"COMMAND: {command}",
+            f"COMMAND: {display_command[command]}",
             (20, 50),
             cv2.FONT_HERSHEY_SIMPLEX,
             1.2,
@@ -201,6 +228,9 @@ while True:
 
 
         command = "NO HAND"
+        if previous_command != "NO HAND":
+            send_command("S")
+            previous_command = "NO HAND"
 
         cv2.putText(
             frame,
@@ -230,6 +260,7 @@ while True:
     if cv2.waitKey(1) == 27:
         break
 
+send_command("S")
+session.close()
 cap.release()
 cv2.destroyAllWindows()
- 
